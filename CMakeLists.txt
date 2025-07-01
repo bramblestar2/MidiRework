@@ -11,10 +11,14 @@ set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(libremidi CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 add_executable(libremiditest src/main.cpp)
 
-target_link_libraries(libremiditest PRIVATE libremidi)
+target_link_libraries(libremiditest PRIVATE 
+    libremidi
+    spdlog::spdlog
+)
 
 target_link_directories(libremiditest PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/src
