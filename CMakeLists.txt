@@ -23,6 +23,7 @@ add_executable(libremiditest
     src/main.cpp
 
     include/Midi/MidiDevice.h src/Midi/MidiDevice.cpp
+    include/Midi/MidiManager.h src/Midi/MidiManager.cpp
 )
 
 target_link_libraries(libremiditest PRIVATE 

@@ -5,39 +5,9 @@
 #include <functional>
 #include <libremidi/libremidi.hpp>
 
-class MidiTransport;
-class MidiIdentityVerifier;
-class MidiRecorder;
-class MidiDispatcher;
-
-class MidiDevice {
-public:
-    MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort);
-    MidiDevice();
-    ~MidiDevice();
-    
-    void startRecording();
-    void stopRecording();
-    const std::vector<libremidi::message>& recorded() const noexcept;
-
-    void onMessage(std::function<void(libremidi::message&)> cb);
-
-    void open(libremidi::input_port inPort, libremidi::output_port outPort);
-    void close();
-
-private:
-    void onMidiMessage(libremidi::message& msg);
-
-    MidiTransport m_transport;
-    MidiIdentityVerifier m_verifier;
-    MidiRecorder m_recorder;
-    MidiDispatcher m_dispatcher;
-};
-
-
 class MidiTransport {
 public:
-    MidiTransport();
+    MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort);
     ~MidiTransport();
 
     void open(libremidi::input_port inPort, libremidi::output_port outPort);
@@ -69,7 +39,7 @@ public:
     ~MidiIdentityVerifier() = default;
 
     void verify();
-    void onVerified(std::function<void(Availability)> cb);
+    void onVerified(std::function<void(libremidi::message&, Availability)> cb);
 
     Availability status() const noexcept;
     std::vector<unsigned char> identity() const noexcept;
@@ -80,7 +50,7 @@ private:
     MidiTransport& m_transport;
     Availability m_status{Availability::NotChecked};
     std::vector<unsigned char> m_identity;
-    std::function<void(libremidi::message& msg)> m_verifyCallback;
+    std::function<void(libremidi::message& msg, Availability)> m_verifyCallback;
 };
 
 
@@ -99,8 +69,8 @@ public:
 
 private:
     MidiTransport& m_transport;
+    std::atomic<bool> m_recording{false};
     std::mutex m_mutex;
-    bool m_recording{false};
     std::vector<libremidi::message> m_recorded;
 };
 
@@ -112,8 +82,47 @@ public:
 
     void onMessage(std::function<void(libremidi::message&)> cb);
 
-    void operator()(const libremidi::message& msg);
+    void operator()(libremidi::message& msg);
 private:
     MidiTransport& m_transport;
     std::function<void(libremidi::message&)> m_userCb;
 };
+
+
+class MidiDevice {
+public:
+    MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort);
+    ~MidiDevice();
+    
+    void startRecording();
+    void stopRecording();
+    const std::vector<libremidi::message>& recorded() const noexcept;
+
+    void onMessage(std::function<void(libremidi::message&)> cb);
+    void onVerified(std::function<void(libremidi::message&, MidiIdentityVerifier::Availability)> cb);
+
+    void open(libremidi::input_port inPort, libremidi::output_port outPort);
+    void close();
+
+private:
+    void onMidiMessage(libremidi::message& msg);
+
+    MidiTransport m_transport;
+    MidiIdentityVerifier m_verifier;
+    MidiRecorder m_recorder;
+    MidiDispatcher m_dispatcher;
+};
+
+
+
+struct DeviceIdentifier {
+    std::string manufacturerId;
+    std::vector<unsigned char> deviceCode;
+};
+
+
+namespace MidiDeviceDB {
+    const std::unordered_map<std::string, DeviceIdentifier> KNOWN_DEVICES = {
+        { "Novation Launchpad Pro", {{0x00, 0x20, 0x29}, { 0x51 }}}
+    };
+}

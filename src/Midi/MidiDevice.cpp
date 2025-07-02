@@ -1,7 +1,9 @@
 #include "Midi/MidiDevice.h"
+#include <spdlog/spdlog.h>
+#include <algorithm>
 
 MidiDevice::MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort)
-    : m_transport()
+    : m_transport(inPort, outPort)
     , m_verifier(m_transport)
     , m_recorder(m_transport)
     , m_dispatcher(m_transport)
@@ -9,8 +11,36 @@ MidiDevice::MidiDevice(libremidi::input_port inPort, libremidi::output_port outP
     open(inPort, outPort);
 }
 
+MidiDevice::~MidiDevice() {
+    close();
+}
+
+void MidiDevice::startRecording() {
+    m_recorder.start();
+}
+
+void MidiDevice::stopRecording() {
+    m_recorder.stop();
+}
+
+const std::vector<libremidi::message>& MidiDevice::recorded() const noexcept {
+    return m_recorder.recorded();
+}
+
+void MidiDevice::onMessage(std::function<void(libremidi::message&)> cb) {
+    m_dispatcher.onMessage(cb);
+}
+
+void MidiDevice::onVerified(std::function<void(libremidi::message&, MidiIdentityVerifier::Availability)> cb) {
+    m_verifier.onVerified(cb);
+}
+
 void MidiDevice::open(libremidi::input_port inPort, libremidi::output_port outPort) {
     m_transport.open(inPort, outPort);
+}
+
+void MidiDevice::close() {
+    m_transport.close();
 }
 
 void MidiDevice::onMidiMessage(libremidi::message& msg) {
@@ -37,7 +67,20 @@ void MidiDevice::onMidiMessage(libremidi::message& msg) {
 }
 
 
+MidiTransport::MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort)
+    : m_midiIn(libremidi::input_configuration{})
+    , m_midiOut(libremidi::output_configuration{}) 
+{
+
+}
+
+MidiTransport::~MidiTransport() {
+    close();
+}
+
 void MidiTransport::open(libremidi::input_port inPort, libremidi::output_port outPort) {
+    close();
+
     m_midiIn.open_port(inPort);
     m_midiOut.open_port(outPort);
 }
@@ -45,4 +88,141 @@ void MidiTransport::open(libremidi::input_port inPort, libremidi::output_port ou
 void MidiTransport::close() {
     m_midiIn.close_port();
     m_midiOut.close_port();
+}
+
+void MidiTransport::send(const std::vector<unsigned char>& msg) {
+    m_midiOut.send_message(msg);
+}
+
+void MidiTransport::onReceived(std::function<void(libremidi::message&)> cb) {
+    m_userCb = cb;
+}
+
+void MidiTransport::operator()(libremidi::message& msg) {
+    m_userCb(msg);
+}
+
+
+MidiIdentityVerifier::MidiIdentityVerifier(MidiTransport& transport) 
+    : m_transport(transport) 
+{
+    
+}
+
+void MidiIdentityVerifier::verify() {
+    m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
+
+    m_status = MidiIdentityVerifier::Availability::InProgress;
+}
+
+void MidiIdentityVerifier::onVerified(std::function<void(libremidi::message& msg, Availability)> cb) {
+    m_verifyCallback = cb;
+}
+
+MidiIdentityVerifier::Availability MidiIdentityVerifier::status() const noexcept {
+    return m_status;
+}
+
+std::vector<unsigned char> MidiIdentityVerifier::identity() const noexcept {
+    return m_identity;
+}
+
+void MidiIdentityVerifier::operator()(libremidi::message& msg) {
+    if (msg.size() < 6 ||
+        msg[0] != 0xF0 ||
+        msg[1] != 0x7E ||
+        msg[3] != 0x06 ||
+        msg[4] != 0x02) {
+        this->m_status = MidiIdentityVerifier::Availability::Unavailable;
+        return;
+    }
+
+    constexpr size_t headerSize = 5, footerSize = 1;
+    if (msg.size() < headerSize + footerSize) {
+        spdlog::error("Message too short.");
+        return;
+    }
+
+    auto payloadBegin = msg.begin() + headerSize;
+    auto payloadEnd = msg.end() - footerSize;
+
+    MidiIdentityVerifier::Availability status = MidiIdentityVerifier::Availability::Unavailable;
+
+    for (auto const& [deviceName, id] : MidiDeviceDB::KNOWN_DEVICES) {
+        const auto& man = id.manufacturerId;
+        const auto& dev = id.deviceCode;
+
+        if (std::distance(payloadBegin, payloadEnd) <
+            static_cast<std::ptrdiff_t>(man.size() + dev.size())) {
+            spdlog::debug(deviceName + ": payload too small");
+            continue;
+        }
+
+        bool manOk = std::equal(
+            payloadBegin,
+            payloadBegin + man.size(),
+            man.begin()
+        );
+
+        if (!manOk) {
+            spdlog::warn(deviceName + ": manufacturer mismatch\n");
+            continue;
+        }
+
+        bool devOk = std::equal(
+            payloadBegin + man.size(),
+            payloadBegin + man.size() + dev.size(),
+            dev.begin()
+        );
+
+        if (devOk) {
+            status = MidiIdentityVerifier::Availability::Available;
+            m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
+
+            break;
+        }
+    }
+
+    this->m_status = status;
+    m_verifyCallback(msg, this->status());
+}
+
+
+MidiRecorder::MidiRecorder(MidiTransport& transport) 
+    : m_transport(transport) 
+{}
+
+void MidiRecorder::start() {
+    m_recording = true;
+}
+
+void MidiRecorder::stop() {
+    m_recording = false;
+}
+
+void MidiRecorder::add(const libremidi::message& msg) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_recorded.push_back(msg);
+}
+
+void MidiRecorder::clear() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_recorded.clear();
+}
+
+const std::vector<libremidi::message>& MidiRecorder::recorded() const noexcept {
+    return m_recorded;
+}
+
+
+MidiDispatcher::MidiDispatcher(MidiTransport& transport) 
+    : m_transport(transport) 
+{}
+
+void MidiDispatcher::onMessage(std::function<void(libremidi::message&)> cb) {
+    m_userCb = cb;
+}
+
+void MidiDispatcher::operator()(libremidi::message& msg) {
+    m_userCb(msg);
 }
