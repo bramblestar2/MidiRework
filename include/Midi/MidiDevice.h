@@ -7,6 +7,7 @@
 
 class MidiTransport {
 public:
+    MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort, std::function<void(libremidi::message&)> cb);
     MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort);
     ~MidiTransport();
 
@@ -14,10 +15,12 @@ public:
     void close();
 
     void send(const std::vector<unsigned char>& msg);
-    void onReceived(std::function<void(libremidi::message&)> cb);
+    void onMidiMessage(std::function<void(libremidi::message&)> cb);
 
     void operator()(libremidi::message& msg);
 private:
+    void handleMidiMessage(libremidi::message msg);
+
     std::mutex m_mutex;
     libremidi::midi_in m_midiIn;
     libremidi::midi_out m_midiOut;
@@ -43,14 +46,18 @@ public:
 
     Availability status() const noexcept;
     std::vector<unsigned char> identity() const noexcept;
+    std::string name() const noexcept;
 
     void operator()(libremidi::message& msg);
 
 private:
     MidiTransport& m_transport;
-    Availability m_status{Availability::NotChecked};
-    std::vector<unsigned char> m_identity;
     std::function<void(libremidi::message& msg, Availability)> m_verifyCallback;
+    
+    std::mutex m_mutex;
+    std::vector<unsigned char> m_identity;
+    Availability m_status{Availability::NotChecked};
+    std::string m_deviceName;
 };
 
 

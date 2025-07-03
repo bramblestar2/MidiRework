@@ -1,9 +1,12 @@
 #include "Midi/MidiDevice.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <iostream>
 
 MidiDevice::MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort)
-    : m_transport(inPort, outPort)
+    : m_transport(inPort, outPort, [this](libremidi::message& msg) { 
+        onMidiMessage(msg);
+    })
     , m_verifier(m_transport)
     , m_recorder(m_transport)
     , m_dispatcher(m_transport)
@@ -37,6 +40,10 @@ void MidiDevice::onVerified(std::function<void(libremidi::message&, MidiIdentity
 
 void MidiDevice::open(libremidi::input_port inPort, libremidi::output_port outPort) {
     m_transport.open(inPort, outPort);
+
+    if (m_verifier.status() == MidiIdentityVerifier::Availability::NotChecked) {
+        m_verifier.verify();
+    }
 }
 
 void MidiDevice::close() {
@@ -48,6 +55,12 @@ void MidiDevice::onMidiMessage(libremidi::message& msg) {
     // If available
     //  - if recorder is recording, add an entry
     //  - if user has a callback, call it
+
+    std::ostringstream ss;
+    for (int i = 0; i < msg.size(); i++) {
+        ss << (int)msg[i] << " ";
+    }
+    spdlog::info("Midi Message: {}", ss.str());
 
     if (m_verifier.status() == MidiIdentityVerifier::Availability::NotChecked) {
         m_verifier.verify();
@@ -67,11 +80,32 @@ void MidiDevice::onMidiMessage(libremidi::message& msg) {
 }
 
 
-MidiTransport::MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort)
-    : m_midiIn(libremidi::input_configuration{})
-    , m_midiOut(libremidi::output_configuration{}) 
+MidiTransport::MidiTransport(libremidi::input_port inPort, 
+                             libremidi::output_port outPort, 
+                             std::function<void(libremidi::message&)> cb)
+    : m_midiIn(libremidi::input_configuration{
+        .on_message = [this, cb](libremidi::message msg) {
+            handleMidiMessage(msg); 
+        },
+        .ignore_sysex = false,
+        .ignore_timing = false,
+        .ignore_sensing = true,
+    })
+    , m_midiOut(libremidi::output_configuration{})
+    , m_userCb(cb)
 {
 
+}
+
+MidiTransport::MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort)
+    : m_midiIn(libremidi::input_configuration{
+        .on_message = [this](libremidi::message msg) { handleMidiMessage(msg); },
+        .ignore_sysex = false,
+        .ignore_timing = false,
+        .ignore_sensing = true,
+    })
+    , m_midiOut(libremidi::output_configuration{}) 
+{
 }
 
 MidiTransport::~MidiTransport() {
@@ -94,12 +128,18 @@ void MidiTransport::send(const std::vector<unsigned char>& msg) {
     m_midiOut.send_message(msg);
 }
 
-void MidiTransport::onReceived(std::function<void(libremidi::message&)> cb) {
+void MidiTransport::onMidiMessage(std::function<void(libremidi::message&)> cb) {
     m_userCb = cb;
 }
 
 void MidiTransport::operator()(libremidi::message& msg) {
     m_userCb(msg);
+}
+
+void MidiTransport::handleMidiMessage(libremidi::message msg) {
+    if (m_userCb) {
+        m_userCb(msg);
+    }
 }
 
 
@@ -127,13 +167,19 @@ std::vector<unsigned char> MidiIdentityVerifier::identity() const noexcept {
     return m_identity;
 }
 
+std::string MidiIdentityVerifier::name() const noexcept {
+    return m_deviceName;
+}
+
 void MidiIdentityVerifier::operator()(libremidi::message& msg) {
+    // Doesnt set Unavailable if it fails the identity check due to a spam problem with responses
+    // a potential solution could be having a timeout on the identity check
+
     if (msg.size() < 6 ||
         msg[0] != 0xF0 ||
         msg[1] != 0x7E ||
         msg[3] != 0x06 ||
         msg[4] != 0x02) {
-        this->m_status = MidiIdentityVerifier::Availability::Unavailable;
         return;
     }
 
@@ -176,15 +222,20 @@ void MidiIdentityVerifier::operator()(libremidi::message& msg) {
         );
 
         if (devOk) {
-            status = MidiIdentityVerifier::Availability::Available;
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_status = MidiIdentityVerifier::Availability::Available;
+            m_deviceName = deviceName;
             m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
-
             break;
+        } else {
+            spdlog::warn(deviceName + ": device mismatch\n");
+            continue;
         }
     }
 
-    this->m_status = status;
-    m_verifyCallback(msg, this->status());
+    if (m_verifyCallback) {
+        m_verifyCallback(msg, this->status());
+    }
 }
 
 

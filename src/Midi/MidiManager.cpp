@@ -2,21 +2,28 @@
 #include <spdlog/spdlog.h>
 
 MidiManager::MidiManager()
+    : m_observer(libremidi::observer_configuration{
+        .input_added = std::bind(&MidiManager::onInputAdded, this, std::placeholders::_1),
+        .input_removed = std::bind(&MidiManager::onInputRemoved, this, std::placeholders::_1),
+        .output_added = std::bind(&MidiManager::onOutputAdded, this, std::placeholders::_1),
+        .output_removed = std::bind(&MidiManager::onOutputRemoved, this, std::placeholders::_1)
+    })
 {
-    libremidi::observer_configuration observer_configuration = {
-        .input_added = [](const libremidi::input_port &val) {
-            spdlog::info("Input Added: {} | {} | {} | {}", val.port_name, val.display_name, val.device_name, val.port);
-        },
-        .input_removed = [](const libremidi::input_port &val) {
-            spdlog::info("Input Removed: {} | {} | {} | {}", val.port_name, val.display_name, val.device_name, val.port);
-        },
-        .output_added = [](const libremidi::output_port &val) {
-            spdlog::info("Output Added: {} | {} | {} | {}", val.port_name, val.display_name, val.device_name, val.port);
-        },
-        .output_removed = [](const libremidi::output_port &val) {
-            spdlog::info("Output Removed: {} | {} | {} | {}", val.port_name, val.display_name, val.device_name, val.port);
-        }
-    };
+}
 
-    observer = libremidi::observer{std::move(observer_configuration)};
+
+void MidiManager::onInputAdded(const libremidi::input_port &val) {
+    spdlog::info("Input added: {}", val.port_name);
+}
+
+void MidiManager::onInputRemoved(const libremidi::input_port &val) {
+    spdlog::info("Input removed: {}", val.port_name);
+}
+
+void MidiManager::onOutputAdded(const libremidi::output_port &val) {
+    spdlog::info("Output added: {}", val.port_name);
+}
+
+void MidiManager::onOutputRemoved(const libremidi::output_port &val) {
+    spdlog::info("Output removed: {}", val.port_name);
 }

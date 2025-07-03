@@ -2,6 +2,9 @@
 #include <libremidi/libremidi.hpp>
 #include <spdlog/spdlog.h>
 
+#include "Midi/MidiManager.h"
+#include "Midi/MidiDevice.h"
+
 int main() {
     libremidi::observer observer;
     for (const auto& port : observer.get_input_ports()) {
@@ -20,11 +23,23 @@ int main() {
         std::cout.flush();
     };
 
-    libremidi::midi_in input{
-        libremidi::input_configuration{ .on_message = my_callback }
-    };
+    // libremidi::midi_in input{
+    //     libremidi::input_configuration{ .on_message = my_callback }
+    // };
 
-    input.open_port(libremidi::midi1::in_default_port().value());
+    // input.open_port(libremidi::midi1::in_default_port().value());
+
+    MidiDevice device(libremidi::midi1::in_default_port().value(), libremidi::midi1::out_default_port().value());
+    device.onMessage(my_callback);
+    device.onVerified([](libremidi::message& msg, MidiIdentityVerifier::Availability) {
+        std::ostringstream ss;
+        for (int i = 0; i < msg.size(); i++) {
+            ss << (int)msg[i] << " ";
+        }
+        spdlog::info("Message: {}", ss.str());
+    });
+
+    MidiManager manager;
 
     std::cin.get();
 
