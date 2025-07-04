@@ -287,26 +287,29 @@ void MidiDeviceManager::handlePortRefresh() {
             );
 
             if (!alreadyTracked) {
-                m_devices.push_back(std::make_shared<MidiDevice>(in, out));
+                auto device = std::make_shared<MidiDevice>(in, out);
+                m_devices.push_back(device);
+
+                device->onMessage([this, device](MidiMessage &m) {
+                    if (m_midiMessageCallback) {
+                        m_midiMessageCallback(device.get(), m);
+                    }
+                });
+
+                device->onVerified([this, device](MidiMessage &m, MidiIdentityVerifier::Availability status) {
+                    if (m_deviceAddedCallback) {
+                        m_deviceAddedCallback(device.get());
+                    }
+                });
                 
 
-                if (m_deviceAddedCallback) {
-                    m_deviceAddedCallback(m_devices.back().get());
-                }
+                // if (m_deviceAddedCallback) {
+                //     m_deviceAddedCallback(m_devices.back().get());
+                // }
 
                 devicesChanged = true;
             }
         }
-    }
-
-    for (int i = 0; i < m_devices.size(); i++) {
-        auto& d = m_devices.at(i);
-        d->onMessage([this, &d](MidiMessage &m) {
-            auto device = const_cast<MidiDevice*>(d.get());
-            if (m_midiMessageCallback) {
-                m_midiMessageCallback(device, m);
-            }
-        });
     }
 
     if (devicesChanged && m_devicesRefreshCallback) {

@@ -51,7 +51,7 @@ int main() {
         spdlog::info("Device added: {}", device->name());
     });
     manager.onDevicesRemoved([](MidiDevice* device) {
-        spdlog::info("Device removed: {}", device->name());
+        spdlog::info("Device removed: {}", device->inPort().port_name);
     });
 
     std::cin.get();

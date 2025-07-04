@@ -48,7 +48,7 @@ public:
     };
 
     MidiIdentityVerifier(MidiTransport& transport, double timeout = 2.0);
-    ~MidiIdentityVerifier() = default;
+    ~MidiIdentityVerifier();
 
     void verify();
     void onVerified(std::function<void(MidiMessage&, Availability)> cb);
@@ -56,6 +56,7 @@ public:
     Availability status() const noexcept;
     std::vector<unsigned char> identity() const noexcept;
     std::string name() const noexcept;
+    std::string displayName() const noexcept;
 
     void operator()(MidiMessage& msg);
 
@@ -66,8 +67,10 @@ private:
     std::mutex m_mutex;
     std::vector<unsigned char> m_identity;
     Availability m_status{Availability::NotChecked};
-    std::string m_deviceName;
 
+    std::string m_deviceName;
+    std::string m_displayName;
+    
     double m_timeout;
     std::chrono::steady_clock::time_point m_verifyStart;
 };
@@ -128,6 +131,7 @@ public:
     MidiIdentityVerifier::Availability status() const noexcept;
     std::vector<unsigned char> identity() const noexcept;
     std::string name() const noexcept;
+    std::string displayName() const noexcept;
 
     void open(libremidi::input_port inPort, libremidi::output_port outPort);
     void close();

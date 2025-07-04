@@ -2,6 +2,51 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
+#include <regex>
+
+
+namespace {
+    std::unordered_map<std::string, int> device_type_count;
+
+    std::mutex ns_mutex;
+
+
+    void AddDeviceCount(std::string name) {
+        std::lock_guard<std::mutex> lock(ns_mutex);
+        
+        if (device_type_count.find(name) == device_type_count.end()) device_type_count[name] = 0;
+
+        device_type_count[name] += 1;
+    }
+
+    void RemoveDeviceCount(std::string name) {
+        std::lock_guard<std::mutex> lock(ns_mutex);
+
+        name = std::regex_replace(name, std::regex(" \\(\\d\\)+$"), "");
+
+        if (device_type_count.find(name) == device_type_count.end()) return;
+
+        if (device_type_count[name] > 0)
+            device_type_count[name]--;
+
+        if (device_type_count[name] == 0)
+            device_type_count.erase(name);
+    }
+
+
+    const std::string GetNameWithCount(std::string name) {
+        if (device_type_count.find(name) == device_type_count.end()) return name;
+
+        return name + " (" + std::to_string(device_type_count.at(name)) + ")";
+    }
+    
+    
+    void ResetDeviceCount() noexcept {
+        device_type_count.clear();
+    }
+}
+
 
 MidiDevice::MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort)
     : m_transport(inPort, outPort, [this](MidiMessage& msg) { 
@@ -91,6 +136,10 @@ std::vector<unsigned char> MidiDevice::identity() const noexcept {
 
 std::string MidiDevice::name() const noexcept {
     return m_verifier.name();
+}
+
+std::string MidiDevice::displayName() const noexcept {
+    return m_verifier.displayName();
 }
 
 const libremidi::input_port& MidiDevice::inPort() const noexcept {
@@ -183,6 +232,10 @@ MidiIdentityVerifier::MidiIdentityVerifier(MidiTransport& transport, double time
 {
 }
 
+MidiIdentityVerifier::~MidiIdentityVerifier() {
+    RemoveDeviceCount(m_deviceName);
+}
+
 void MidiIdentityVerifier::verify() {
     m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
 
@@ -204,6 +257,10 @@ std::vector<unsigned char> MidiIdentityVerifier::identity() const noexcept {
 
 std::string MidiIdentityVerifier::name() const noexcept {
     return m_deviceName;
+}
+
+std::string MidiIdentityVerifier::displayName() const noexcept {
+    return m_displayName;
 }
 
 void MidiIdentityVerifier::operator()(MidiMessage& msg) {
@@ -264,11 +321,16 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_status = MidiIdentityVerifier::Availability::Available;
             m_deviceName = deviceName;
+
+            m_displayName = GetNameWithCount(deviceName);
+            AddDeviceCount(deviceName);
+
             m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
             break;
         } else {
             spdlog::warn(deviceName + ": device mismatch\n");
             m_deviceName = "Unknown";
+            m_displayName = "Unknown";
             continue;
         }
     }
