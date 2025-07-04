@@ -45,7 +45,7 @@ int main() {
         for (int i = 0; i < msg.size(); i++) {
             ss << (int)msg[i] << " ";
         }
-        spdlog::info("From {} | Message: {}", device->name(), ss.str());
+        spdlog::info("From {} | Channel: {} | Type: {} | Message: {}", device->name(), msg.get_channel(), (int)msg.get_message_type(), ss.str());
     });
     manager.onDevicesAdded([](MidiDevice* device) {
         spdlog::info("Device added: {}", device->name());

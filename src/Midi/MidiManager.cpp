@@ -256,7 +256,8 @@ void MidiDeviceManager::handlePortRefresh() {
             );
 
             bool stillValid = stillHasIn && stillHasOut;
-            if (!stillValid && m_deviceRemovedCallback) {
+            bool wasAvailable = d->status() == MidiIdentityVerifier::Availability::Available;
+            if (!stillValid && m_deviceRemovedCallback && wasAvailable) {
                 m_deviceRemovedCallback(const_cast<MidiDevice*>(d.get()));
             }
 
@@ -301,11 +302,6 @@ void MidiDeviceManager::handlePortRefresh() {
                         m_deviceAddedCallback(device.get());
                     }
                 });
-                
-
-                // if (m_deviceAddedCallback) {
-                //     m_deviceAddedCallback(m_devices.back().get());
-                // }
 
                 devicesChanged = true;
             }
