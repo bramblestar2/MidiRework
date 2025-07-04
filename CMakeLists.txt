@@ -19,30 +19,42 @@ add_subdirectory(libremidi)
 
 find_package(spdlog CONFIG REQUIRED)
 
-add_executable(libremiditest 
-    src/main.cpp
+add_library(MidiReworkCore 
 
     include/Midi/MidiDevice.h src/Midi/MidiDevice.cpp
     include/Midi/MidiManager.h src/Midi/MidiManager.cpp
     include/Midi/types.h
 )
 
-target_link_libraries(libremiditest PRIVATE 
+target_link_libraries(MidiReworkCore PUBLIC 
     libremidi
     spdlog::spdlog
 )
 
 if (LINUX)
-    target_link_libraries(libremiditest PRIVATE ${JACK_LIBRARIES})
+    target_link_libraries(MidiReworkCore PUBLIC ${JACK_LIBRARIES})
 endif()
 
-target_include_directories(libremiditest PRIVATE 
+target_include_directories(MidiReworkCore PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+
+add_executable(libremidiexecutable src/main.cpp)
+
+target_link_libraries(libremidiexecutable PRIVATE 
+    MidiReworkCore
+)
+
+target_include_directories(libremidiexecutable PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+
 include(GNUInstallDirs)
-install(TARGETS libremiditest
+install(TARGETS MidiReworkCore
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
