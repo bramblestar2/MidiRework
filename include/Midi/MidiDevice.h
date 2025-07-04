@@ -3,29 +3,38 @@
 #include <mutex>
 #include <vector>
 #include <functional>
+#include <chrono>
 #include <libremidi/libremidi.hpp>
+
+#include "types.h"
 
 class MidiTransport {
 public:
-    MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort, std::function<void(libremidi::message&)> cb);
+    MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort, std::function<void(MidiMessage&)> cb);
     MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort);
     ~MidiTransport();
+
+    const libremidi::input_port& inPort() const noexcept;
+    const libremidi::output_port& outPort() const noexcept;
 
     void open(libremidi::input_port inPort, libremidi::output_port outPort);
     void close();
 
     void send(const std::vector<unsigned char>& msg);
-    void onMidiMessage(std::function<void(libremidi::message&)> cb);
+    void onMidiMessage(std::function<void(MidiMessage&)> cb);
 
-    void operator()(libremidi::message& msg);
+    void operator()(MidiMessage& msg);
 private:
-    void handleMidiMessage(libremidi::message msg);
+    void handleMidiMessage(MidiMessage& msg);
 
     std::mutex m_mutex;
     libremidi::midi_in m_midiIn;
     libremidi::midi_out m_midiOut;
 
-    std::function<void(libremidi::message&)> m_userCb;
+    libremidi::input_port m_inPort;
+    libremidi::output_port m_outPort;
+
+    std::function<void(MidiMessage&)> m_userCb;
 };
 
 
@@ -38,26 +47,29 @@ public:
         Unavailable
     };
 
-    MidiIdentityVerifier(MidiTransport& transport);
+    MidiIdentityVerifier(MidiTransport& transport, double timeout = 2.0);
     ~MidiIdentityVerifier() = default;
 
     void verify();
-    void onVerified(std::function<void(libremidi::message&, Availability)> cb);
+    void onVerified(std::function<void(MidiMessage&, Availability)> cb);
 
     Availability status() const noexcept;
     std::vector<unsigned char> identity() const noexcept;
     std::string name() const noexcept;
 
-    void operator()(libremidi::message& msg);
+    void operator()(MidiMessage& msg);
 
 private:
     MidiTransport& m_transport;
-    std::function<void(libremidi::message& msg, Availability)> m_verifyCallback;
+    std::function<void(MidiMessage& msg, Availability)> m_verifyCallback;
     
     std::mutex m_mutex;
     std::vector<unsigned char> m_identity;
     Availability m_status{Availability::NotChecked};
     std::string m_deviceName;
+
+    double m_timeout;
+    std::chrono::steady_clock::time_point m_verifyStart;
 };
 
 
@@ -70,7 +82,7 @@ public:
     void stop();
     void add(const libremidi::message& msg);
     void clear();
-    const std::vector<libremidi::message>& recorded() const noexcept;
+    const std::vector<MidiMessage>& recorded() const noexcept;
 
     bool isRecording() const noexcept { return m_recording; }
 
@@ -78,7 +90,7 @@ private:
     MidiTransport& m_transport;
     std::atomic<bool> m_recording{false};
     std::mutex m_mutex;
-    std::vector<libremidi::message> m_recorded;
+    std::vector<MidiMessage> m_recorded;
 };
 
 
@@ -87,12 +99,12 @@ public:
     MidiDispatcher(MidiTransport& transport);
     ~MidiDispatcher() = default;
 
-    void onMessage(std::function<void(libremidi::message&)> cb);
+    void onMessage(std::function<void(MidiMessage&)> cb);
 
-    void operator()(libremidi::message& msg);
+    void operator()(MidiMessage& msg);
 private:
     MidiTransport& m_transport;
-    std::function<void(libremidi::message&)> m_userCb;
+    std::function<void(MidiMessage&)> m_userCb;
 };
 
 
@@ -100,19 +112,31 @@ class MidiDevice {
 public:
     MidiDevice(libremidi::input_port inPort, libremidi::output_port outPort);
     ~MidiDevice();
+
+    MidiDevice(const MidiDevice&) = delete;
+    MidiDevice& operator=(const MidiDevice&) = delete;
+    MidiDevice(MidiDevice&&) = delete;
+    MidiDevice& operator=(MidiDevice&&) = delete;
     
     void startRecording();
     void stopRecording();
     const std::vector<libremidi::message>& recorded() const noexcept;
 
-    void onMessage(std::function<void(libremidi::message&)> cb);
-    void onVerified(std::function<void(libremidi::message&, MidiIdentityVerifier::Availability)> cb);
+    void onMessage(std::function<void(MidiMessage&)> cb);
+    void onVerified(std::function<void(MidiMessage&, MidiIdentityVerifier::Availability)> cb);
+    
+    MidiIdentityVerifier::Availability status() const noexcept;
+    std::vector<unsigned char> identity() const noexcept;
+    std::string name() const noexcept;
 
     void open(libremidi::input_port inPort, libremidi::output_port outPort);
     void close();
 
+    const libremidi::input_port& inPort() const noexcept;
+    const libremidi::output_port& outPort() const noexcept;
+
 private:
-    void onMidiMessage(libremidi::message& msg);
+    void onMidiMessage(MidiMessage& msg);
 
     MidiTransport m_transport;
     MidiIdentityVerifier m_verifier;
