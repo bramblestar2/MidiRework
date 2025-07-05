@@ -6,6 +6,7 @@
 #include <regex>
 
 
+
 namespace {
     std::unordered_map<std::string, int> device_type_count;
 
@@ -253,10 +254,12 @@ MidiIdentityVerifier::~MidiIdentityVerifier() {
 }
 
 void MidiIdentityVerifier::verify() {
-    m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
+    m_timerQueue.schedule(Clock::now() + std::chrono::milliseconds(1000), [this]() {
+        m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
+        m_verifyStart = std::chrono::steady_clock::now();
+    });
 
     m_status = Availability::InProgress;
-    m_verifyStart = std::chrono::steady_clock::now();
 }
 
 void MidiIdentityVerifier::onVerified(std::function<void(MidiMessage& msg, Availability)> cb) {

@@ -234,6 +234,11 @@ bool MidiDeviceManager::portsMatch(const libremidi::input_port &inPort, const li
     std::string in = inPort.port_name;
     std::string out = outPort.port_name;
 
+    std::ostringstream ss;
+    ss << "Port Matching: " << in << " - " << out;
+    std::cout << ss.str() << "\n";
+    std::cout.flush();
+
     // Go to Uppercase
     std::transform(in.begin(), in.end(), in.begin(), ::toupper);
     std::transform(out.begin(), out.end(), out.begin(), ::toupper);
@@ -264,6 +269,8 @@ void MidiDeviceManager::handlePortRefresh() {
 
     auto inPorts = m_portManager.inputs();
     auto outPorts = m_portManager.outputs();
+
+    std::cout << "Device count: " << m_devices.size() << std::endl;
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -299,6 +306,8 @@ void MidiDeviceManager::handlePortRefresh() {
     );
 
     m_devices.erase(removeIt, m_devices.end());
+
+    std::cout << "Device count 2: " << m_devices.size() << std::endl;
 
     // Find matching ports in the updated lists
 
@@ -340,6 +349,8 @@ void MidiDeviceManager::handlePortRefresh() {
             }
         }
     }
+
+    std::cout << "Device count 3: " << m_devices.size() << std::endl;
 
     if (devicesChanged && m_devicesRefreshCallback) {
         m_devicesRefreshCallback(this->getDevices());

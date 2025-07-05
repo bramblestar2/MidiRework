@@ -6,6 +6,8 @@
 #include "Midi/MidiDevice.h"
 
 int main() {
+    spdlog::set_level(spdlog::level::debug);
+
     libremidi::observer observer;
     for (const auto& port : observer.get_input_ports()) {
         spdlog::info("{} | {} | {} | {}", port.port_name, port.display_name, port.device_name, port.port);
