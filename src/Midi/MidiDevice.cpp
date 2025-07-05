@@ -254,12 +254,10 @@ MidiIdentityVerifier::~MidiIdentityVerifier() {
 }
 
 void MidiIdentityVerifier::verify() {
-    m_timerQueue.schedule(Clock::now() + std::chrono::milliseconds(1000), [this]() {
-        m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
-        m_verifyStart = std::chrono::steady_clock::now();
-    });
-
+    m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
+    
     m_status = Availability::InProgress;
+    m_verifyStart = std::chrono::steady_clock::now();
 }
 
 void MidiIdentityVerifier::onVerified(std::function<void(MidiMessage& msg, Availability)> cb) {
@@ -286,7 +284,7 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
     if (m_status == Availability::InProgress) {
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::seconds>(now - m_verifyStart).count() > m_timeout) {
-            m_status = Availability::Unavailable;
+            m_status = Availability::TimedOut;
         }
     }
 

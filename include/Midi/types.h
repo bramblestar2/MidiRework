@@ -7,7 +7,8 @@ enum class Availability {
     InProgress,
     Virtual,
     Available,
-    Unavailable
+    Unavailable,
+    TimedOut
 };
 
 using MidiMessage = libremidi::message;

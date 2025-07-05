@@ -23,7 +23,6 @@ add_library(MidiReworkCore
 
     include/Midi/MidiDevice.h src/Midi/MidiDevice.cpp
     include/Midi/MidiManager.h src/Midi/MidiManager.cpp
-    include/Utility/Timer.h src/Utility/Timer.cpp
     include/Midi/types.h
 )
 

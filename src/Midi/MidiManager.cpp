@@ -234,11 +234,6 @@ bool MidiDeviceManager::portsMatch(const libremidi::input_port &inPort, const li
     std::string in = inPort.port_name;
     std::string out = outPort.port_name;
 
-    std::ostringstream ss;
-    ss << "Port Matching: " << in << " - " << out;
-    std::cout << ss.str() << "\n";
-    std::cout.flush();
-
     // Go to Uppercase
     std::transform(in.begin(), in.end(), in.begin(), ::toupper);
     std::transform(out.begin(), out.end(), out.begin(), ::toupper);
@@ -270,44 +265,9 @@ void MidiDeviceManager::handlePortRefresh() {
     auto inPorts = m_portManager.inputs();
     auto outPorts = m_portManager.outputs();
 
-    std::cout << "Device count: " << m_devices.size() << std::endl;
-
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    // Search for ports that no longer exist from existing devices
-    auto removeIt = std::remove_if(
-        m_devices.begin(), m_devices.end(), [&](const std::shared_ptr<MidiDevice> &d) {
-            bool stillHasIn = std::any_of(
-                inPorts.begin(), inPorts.end(), 
-                [&d](const libremidi::input_port &p) {
-                    return p.port_name == d->inPort().port_name;
-                }
-            );
-
-            bool stillHasOut = std::any_of(
-                outPorts.begin(), outPorts.end(), 
-                [&d](const libremidi::output_port &p) {
-                    return p.port_name == d->outPort().port_name;
-                }
-            );
-
-            bool stillValid = stillHasIn && stillHasOut;
-            bool wasAvailable = d->status() == Availability::Available;
-            if (!stillValid && m_deviceRemovedCallback && wasAvailable) {
-                m_deviceRemovedCallback(const_cast<MidiDevice*>(d.get()));
-            }
-
-            if (!stillValid) {
-                devicesChanged = true;
-            }
-
-            return !stillValid;
-        }
-    );
-
-    m_devices.erase(removeIt, m_devices.end());
-
-    std::cout << "Device count 2: " << m_devices.size() << std::endl;
+    m_devices.clear();
 
     // Find matching ports in the updated lists
 
@@ -317,40 +277,28 @@ void MidiDeviceManager::handlePortRefresh() {
                 continue;
             }
 
-            bool alreadyTracked = std::any_of(
-                m_devices.begin(), m_devices.end(), 
-                [&in, &out](const std::shared_ptr<MidiDevice> &d) {
-                    return d->inPort().port_name == in.port_name 
-                        && d->outPort().port_name == out.port_name;
+            auto device = std::make_shared<MidiDevice>(in, out);
+            m_devices.push_back(device);
+
+            device->onMessage([this, device](MidiMessage &m) {
+                if (m_midiMessageCallback) {
+                    m_midiMessageCallback(device.get(), m);
                 }
-            );
+            });
 
-            if (!alreadyTracked) {
-                auto device = std::make_shared<MidiDevice>(in, out);
-                m_devices.push_back(device);
+            device->onVerified([this, device](MidiMessage &m, Availability status) {
+                if (m_deviceAddedCallback) {
+                    m_deviceAddedCallback(device.get());
+                }
 
-                device->onMessage([this, device](MidiMessage &m) {
-                    if (m_midiMessageCallback) {
-                        m_midiMessageCallback(device.get(), m);
-                    }
-                });
+                if (m_recording) {
+                    device->startRecording();
+                }
+            });
 
-                device->onVerified([this, device](MidiMessage &m, Availability status) {
-                    if (m_deviceAddedCallback) {
-                        m_deviceAddedCallback(device.get());
-                    }
-
-                    if (m_recording) {
-                        device->startRecording();
-                    }
-                });
-
-                devicesChanged = true;
-            }
+            devicesChanged = true;
         }
     }
-
-    std::cout << "Device count 3: " << m_devices.size() << std::endl;
 
     if (devicesChanged && m_devicesRefreshCallback) {
         m_devicesRefreshCallback(this->getDevices());

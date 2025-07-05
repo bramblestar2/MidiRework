@@ -59,7 +59,6 @@ int main() {
         spdlog::info("Device removed: {}", device->inPort().port_name);
     });
 
-
     std::cin.get();
 
     manager.stopRecording();

@@ -7,8 +7,6 @@
 #include <libremidi/libremidi.hpp>
 
 #include "types.h"
-#include "Utility/Timer.h"
-
 
 class MidiTransport {
 public:
@@ -75,8 +73,6 @@ private:
     
     double m_timeout;
     std::chrono::steady_clock::time_point m_verifyStart;
-
-    TimerQueue m_timerQueue;
 };
 
 
