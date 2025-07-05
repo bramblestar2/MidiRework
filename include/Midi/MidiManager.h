@@ -46,6 +46,10 @@ class MidiDeviceManager {
 public:
     MidiDeviceManager();
 
+    void startRecording();
+    void stopRecording();
+    std::vector<std::pair<std::string, std::vector<MidiMessage>>> recorded();
+
     void onMidiMessage(DeviceMidiMessageCallback cb);
     void onDevicesRefresh(DeviceRefreshCallback cb);
     void onDeviceAdded(DeviceAddedCallback cb);
@@ -71,6 +75,8 @@ private:
     DeviceRemovedCallback m_deviceRemovedCallback;
 
     MidiPortManager m_portManager;
+
+    bool m_recording;
 };
 
 class MidiManager {

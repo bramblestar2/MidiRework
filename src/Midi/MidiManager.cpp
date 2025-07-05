@@ -143,7 +143,9 @@ void MidiPortManager::OutputRemoved(const libremidi::output_port &val) {
 
 
 
-MidiDeviceManager::MidiDeviceManager() {
+MidiDeviceManager::MidiDeviceManager()
+    : m_recording(false)
+{
     m_portManager.onPortsChanged(std::bind(&MidiDeviceManager::handlePortRefresh, this));
     m_portManager.onInputAdded([this](const libremidi::input_port &val) { });
     m_portManager.onInputRemoved([this](const libremidi::input_port &val) { });
@@ -151,6 +153,33 @@ MidiDeviceManager::MidiDeviceManager() {
     m_portManager.onOutputRemoved([this](const libremidi::output_port &val) { });
 
     handlePortRefresh();
+}
+
+void MidiDeviceManager::startRecording() {
+    m_recording = true;
+    for (auto d : this->getAvailableDevices()) {
+        d->startRecording();
+    }
+}
+
+void MidiDeviceManager::stopRecording() {
+    m_recording = false;
+    for (auto d : this->getAvailableDevices()) {
+        d->stopRecording();
+    }
+}
+
+std::vector<std::pair<std::string, std::vector<MidiMessage>>> MidiDeviceManager::recorded() {
+    std::vector<std::pair<std::string, std::vector<MidiMessage>>> result;
+
+    for (auto d : this->getAvailableDevices()) {
+        if (d->recorded().empty()) {
+            continue;
+        }
+        result.push_back(std::make_pair(d->name(), d->recorded()));
+    }
+
+    return result;
 }
 
 void MidiDeviceManager::onMidiMessage(DeviceMidiMessageCallback cb) {
@@ -188,7 +217,7 @@ std::vector<MidiDevice*> MidiDeviceManager::getAvailableDevices() {
 
     auto devices = this->getDevices();
     std::copy_if(devices.begin(), devices.end(), std::back_inserter(result), [](MidiDevice *d) {
-        return d->status() == MidiIdentityVerifier::Availability::Available;
+        return d->status() == Availability::Available;
     });
 
     result.shrink_to_fit();
@@ -256,7 +285,7 @@ void MidiDeviceManager::handlePortRefresh() {
             );
 
             bool stillValid = stillHasIn && stillHasOut;
-            bool wasAvailable = d->status() == MidiIdentityVerifier::Availability::Available;
+            bool wasAvailable = d->status() == Availability::Available;
             if (!stillValid && m_deviceRemovedCallback && wasAvailable) {
                 m_deviceRemovedCallback(const_cast<MidiDevice*>(d.get()));
             }
@@ -297,9 +326,13 @@ void MidiDeviceManager::handlePortRefresh() {
                     }
                 });
 
-                device->onVerified([this, device](MidiMessage &m, MidiIdentityVerifier::Availability status) {
+                device->onVerified([this, device](MidiMessage &m, Availability status) {
                     if (m_deviceAddedCallback) {
                         m_deviceAddedCallback(device.get());
+                    }
+
+                    if (m_recording) {
+                        device->startRecording();
                     }
                 });
 
@@ -342,25 +375,15 @@ MidiManager::MidiManager()
 }
 
 void MidiManager::startRecording() {
-    for (auto &d : m_deviceManager.getAvailableDevices()) {
-        d->startRecording();
-    }
+    m_deviceManager.startRecording();
 }
 
 void MidiManager::stopRecording() {
-    for (auto &d : m_deviceManager.getAvailableDevices()) {
-        d->stopRecording();
-    }
+    m_deviceManager.stopRecording();
 }
 
 std::vector<std::pair<std::string, std::vector<MidiMessage>>> MidiManager::recorded() {
-    std::vector<std::pair<std::string, std::vector<MidiMessage>>> result;
-
-    for (auto d : this->getAvailableDevices()) {
-        result.push_back(std::make_pair(d->name(), d->recorded()));
-    }
-
-    return result;
+    return m_deviceManager.recorded();
 }
 
 void MidiManager::refresh() {

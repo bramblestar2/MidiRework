@@ -40,6 +40,9 @@ int main() {
     // });
 
     MidiManager manager;
+    manager.startRecording();
+
+
     manager.onMidiMessage([](MidiDevice* device, MidiMessage& msg) {
         std::ostringstream ss;
         for (int i = 0; i < msg.size(); i++) {
@@ -54,9 +57,6 @@ int main() {
         spdlog::info("Device removed: {}", device->inPort().port_name);
     });
 
-    std::cin.get();
-
-    manager.startRecording();
 
     std::cin.get();
 

@@ -75,18 +75,18 @@ const std::vector<MidiMessage>& MidiDevice::recorded() const noexcept {
     return m_recorder.recorded();
 }
 
-void MidiDevice::onMessage(std::function<void(MidiMessage&)> cb) {
+void MidiDevice::onMessage(MidiMessageCallback cb) {
     m_dispatcher.onMessage(cb);
 }
 
-void MidiDevice::onVerified(std::function<void(MidiMessage&, MidiIdentityVerifier::Availability)> cb) {
+void MidiDevice::onVerified(VerificationCallback cb) {
     m_verifier.onVerified(cb);
 }
 
 void MidiDevice::open(libremidi::input_port inPort, libremidi::output_port outPort) {
     m_transport.open(inPort, outPort);
 
-    if (m_verifier.status() == MidiIdentityVerifier::Availability::NotChecked) {
+    if (m_verifier.status() == Availability::NotChecked) {
         m_verifier.verify();
     }
 }
@@ -109,13 +109,13 @@ void MidiDevice::onMidiMessage(MidiMessage& msg) {
     //     m_verifier(msg);
     // }
 
-    if (m_verifier.status() == MidiIdentityVerifier::Availability::NotChecked) {
+    if (m_verifier.status() == Availability::NotChecked) {
         m_verifier.verify();
     }
-    else if (m_verifier.status() == MidiIdentityVerifier::Availability::InProgress) {
+    else if (m_verifier.status() == Availability::InProgress) {
         m_verifier(msg);
     } 
-    else if (m_verifier.status() == MidiIdentityVerifier::Availability::Available) {
+    else if (m_verifier.status() == Availability::Available) {
         if (msg.size() == 3) {
             if (m_recorder.isRecording()) {
                 m_recorder.add(msg);
@@ -126,7 +126,7 @@ void MidiDevice::onMidiMessage(MidiMessage& msg) {
     }
 }
 
-MidiIdentityVerifier::Availability MidiDevice::status() const noexcept {
+Availability MidiDevice::status() const noexcept {
     return m_verifier.status();
 }
 
@@ -153,11 +153,11 @@ const libremidi::output_port& MidiDevice::outPort() const noexcept {
 
 MidiTransport::MidiTransport(libremidi::input_port inPort, 
                              libremidi::output_port outPort, 
-                             std::function<void(MidiMessage&)> cb)
+                             MidiMessageCallback cb)
     : m_midiIn(libremidi::input_configuration{
-        .on_message = [this, cb](MidiMessage msg) {
-            handleMidiMessage(msg); 
-        },
+        .on_message = [this](MidiMessage msg) { this->handleMidiMessage(msg); },
+        .on_error = std::bind(&MidiTransport::handleErrorMessage, this, std::placeholders::_1, std::placeholders::_2),
+        .on_warning = std::bind(&MidiTransport::handleWarningMessage, this, std::placeholders::_1, std::placeholders::_2),
         .ignore_sysex = false,
         .ignore_timing = false,
         .ignore_sensing = true,
@@ -172,7 +172,9 @@ MidiTransport::MidiTransport(libremidi::input_port inPort,
 
 MidiTransport::MidiTransport(libremidi::input_port inPort, libremidi::output_port outPort)
     : m_midiIn(libremidi::input_configuration{
-        .on_message = [this](MidiMessage msg) { handleMidiMessage(msg); },
+        .on_message = [this](MidiMessage msg) { this->handleMidiMessage(msg); },
+        .on_error = std::bind(&MidiTransport::handleErrorMessage, this, std::placeholders::_1, std::placeholders::_2),
+        .on_warning = std::bind(&MidiTransport::handleWarningMessage, this, std::placeholders::_1, std::placeholders::_2),
         .ignore_sysex = false,
         .ignore_timing = false,
         .ignore_sensing = true,
@@ -211,7 +213,7 @@ void MidiTransport::send(const std::vector<unsigned char>& msg) {
     m_midiOut.send_message(msg);
 }
 
-void MidiTransport::onMidiMessage(std::function<void(MidiMessage&)> cb) {
+void MidiTransport::onMidiMessage(MidiMessageCallback cb) {
     m_userCb = cb;
 }
 
@@ -222,6 +224,20 @@ void MidiTransport::operator()(MidiMessage& msg) {
 void MidiTransport::handleMidiMessage(MidiMessage& msg) {
     if (m_userCb) {
         m_userCb(msg);
+    }
+}
+
+void MidiTransport::handleErrorMessage(std::string_view info, const libremidi::source_location& source) {
+    spdlog::error("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
+    if (m_errorCb) {
+        m_errorCb(info, source);
+    }
+}
+
+void MidiTransport::handleWarningMessage(std::string_view info, const libremidi::source_location& source) {
+    spdlog::warn("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
+    if (m_warningCb) {
+        m_warningCb(info, source);
     }
 }
 
@@ -239,7 +255,7 @@ MidiIdentityVerifier::~MidiIdentityVerifier() {
 void MidiIdentityVerifier::verify() {
     m_transport.send({0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7});
 
-    m_status = MidiIdentityVerifier::Availability::InProgress;
+    m_status = Availability::InProgress;
     m_verifyStart = std::chrono::steady_clock::now();
 }
 
@@ -247,7 +263,7 @@ void MidiIdentityVerifier::onVerified(std::function<void(MidiMessage& msg, Avail
     m_verifyCallback = cb;
 }
 
-MidiIdentityVerifier::Availability MidiIdentityVerifier::status() const noexcept {
+Availability MidiIdentityVerifier::status() const noexcept {
     return m_status;
 }
 
@@ -264,10 +280,10 @@ std::string MidiIdentityVerifier::displayName() const noexcept {
 }
 
 void MidiIdentityVerifier::operator()(MidiMessage& msg) {
-    if (m_status == MidiIdentityVerifier::Availability::InProgress) {
+    if (m_status == Availability::InProgress) {
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::seconds>(now - m_verifyStart).count() > m_timeout) {
-            m_status = MidiIdentityVerifier::Availability::Unavailable;
+            m_status = Availability::Unavailable;
         }
     }
 
@@ -288,7 +304,7 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
     auto payloadBegin = msg.begin() + headerSize;
     auto payloadEnd = msg.end() - footerSize;
 
-    MidiIdentityVerifier::Availability status = MidiIdentityVerifier::Availability::Unavailable;
+    Availability status = Availability::Unavailable;
 
     for (auto const& [deviceName, id] : MidiDeviceDB::KNOWN_DEVICES) {
         const auto& man = id.manufacturerId;
@@ -319,7 +335,7 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
 
         if (devOk) {
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_status = MidiIdentityVerifier::Availability::Available;
+            m_status = Availability::Available;
             m_deviceName = deviceName;
 
             m_displayName = GetNameWithCount(deviceName);
@@ -372,7 +388,7 @@ MidiDispatcher::MidiDispatcher(MidiTransport& transport)
     : m_transport(transport) 
 {}
 
-void MidiDispatcher::onMessage(std::function<void(MidiMessage&)> cb) {
+void MidiDispatcher::onMessage(MidiMessageCallback cb) {
     m_userCb = cb;
 }
 

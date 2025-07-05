@@ -101,6 +101,7 @@
         "stack": "cpp",
         "stdfloat": "cpp",
         "cfenv": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "filesystem": "cpp"
     }
 }
