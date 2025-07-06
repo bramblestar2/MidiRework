@@ -52,10 +52,10 @@ int main() {
         }
         spdlog::info("From {} | Channel: {} | Type: {} | Message: {}", device->name(), msg.get_channel(), (int)msg.get_message_type(), ss.str());
     });
-    manager.onDevicesAdded([](MidiDevice* device) {
+    manager.onDeviceAdded([](MidiDevice* device) {
         spdlog::info("Device added: {}", device->name());
     });
-    manager.onDevicesRemoved([](MidiDevice* device) {
+    manager.onDeviceRemoved([](MidiDevice* device) {
         spdlog::info("Device removed: {}", device->inPort().port_name);
     });
 

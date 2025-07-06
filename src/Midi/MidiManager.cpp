@@ -11,10 +11,12 @@ MidiPortManager::MidiPortManager()
     , m_outputAdded(nullptr)
     , m_outputRemoved(nullptr)
     , m_observer(libremidi::observer_configuration{
+        .on_error = std::bind(&MidiPortManager::ErrorMessage, this, std::placeholders::_1, std::placeholders::_2),
+        .on_warning = std::bind(&MidiPortManager::WarningMessage, this, std::placeholders::_1, std::placeholders::_2),
         .input_added = std::bind(&MidiPortManager::InputAdded, this, std::placeholders::_1),
         .input_removed = std::bind(&MidiPortManager::InputRemoved, this, std::placeholders::_1),
         .output_added = std::bind(&MidiPortManager::OutputAdded, this, std::placeholders::_1),
-        .output_removed = std::bind(&MidiPortManager::OutputRemoved, this, std::placeholders::_1)
+        .output_removed = std::bind(&MidiPortManager::OutputRemoved, this, std::placeholders::_1),
     })
 {
 }
@@ -50,6 +52,30 @@ void MidiPortManager::onOutputAdded(std::function<void(const libremidi::output_p
 
 void MidiPortManager::onOutputRemoved(std::function<void(const libremidi::output_port &)> cb) {
     m_outputRemoved = cb;
+}
+
+void MidiPortManager::onError(ErrorCallback cb) {
+    m_errorCallback = cb;
+}
+
+void MidiPortManager::onWarning(WarningCallback cb) {
+    m_warningCallback = cb;
+}
+
+void MidiPortManager::ErrorMessage(std::string_view info, const libremidi::source_location& source) {
+    spdlog::error("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
+
+    if (m_errorCallback) {
+        m_errorCallback(info, source);
+    }
+}
+
+void MidiPortManager::WarningMessage(std::string_view info, const libremidi::source_location& source) {
+    spdlog::warn("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
+
+    if (m_warningCallback) {
+        m_warningCallback(info, source);
+    }
 }
 
 void MidiPortManager::InputAdded(const libremidi::input_port &val) {
@@ -151,6 +177,16 @@ MidiDeviceManager::MidiDeviceManager()
     m_portManager.onInputRemoved([this](const libremidi::input_port &val) { });
     m_portManager.onOutputAdded([this](const libremidi::output_port &val) { });
     m_portManager.onOutputRemoved([this](const libremidi::output_port &val) { });
+    m_portManager.onError([this](std::string_view info, const libremidi::source_location& source) {
+        if (m_errorCallback) {
+            m_errorCallback(info, source);
+        }
+    });
+    m_portManager.onWarning([this](std::string_view info, const libremidi::source_location& source) {
+        if (m_warningCallback) {
+            m_warningCallback(info, source);
+        }
+    });
 
     handlePortRefresh();
 }
@@ -180,6 +216,14 @@ std::vector<std::pair<std::string, std::vector<MidiMessage>>> MidiDeviceManager:
     }
 
     return result;
+}
+
+void MidiDeviceManager::onError(ErrorCallback cb) {
+    m_errorCallback = cb;
+}
+
+void MidiDeviceManager::onWarning(WarningCallback cb) {
+    m_warningCallback = cb;
 }
 
 void MidiDeviceManager::onMidiMessage(DeviceMidiMessageCallback cb) {
@@ -308,68 +352,4 @@ void MidiDeviceManager::handlePortRefresh() {
 
 MidiManager::MidiManager()
 {
-    m_deviceManager.onMidiMessage([this](MidiDevice* device, MidiMessage& msg) {
-        if (m_midiMessageCallback) {
-            m_midiMessageCallback(device, msg);
-        }
-    });
-
-    m_deviceManager.onDevicesRefresh([this](std::vector<MidiDevice*> devices) {
-        if (m_devicesRefreshCallback) {
-            m_devicesRefreshCallback(devices);
-        }
-    });
-
-    m_deviceManager.onDeviceAdded([this](MidiDevice* device) {
-        if (m_deviceAddedCallback) {
-            m_deviceAddedCallback(device);
-        }
-    });
-
-    m_deviceManager.onDeviceRemoved([this](MidiDevice* device) {
-        if (m_deviceRemovedCallback) {
-            m_deviceRemovedCallback(device);
-        }
-    });
-}
-
-void MidiManager::startRecording() {
-    m_deviceManager.startRecording();
-}
-
-void MidiManager::stopRecording() {
-    m_deviceManager.stopRecording();
-}
-
-std::vector<std::pair<std::string, std::vector<MidiMessage>>> MidiManager::recorded() {
-    return m_deviceManager.recorded();
-}
-
-void MidiManager::refresh() {
-    m_deviceManager.refresh();
-}
-
-std::vector<MidiDevice*> MidiManager::getDevices() {
-    return m_deviceManager.getDevices();
-}
-
-std::vector<MidiDevice*> MidiManager::getAvailableDevices() {
-    return m_deviceManager.getAvailableDevices();
-}
-
-
-void MidiManager::onMidiMessage(DeviceMidiMessageCallback cb) {
-    m_midiMessageCallback = cb;
-}
-
-void MidiManager::onDevicesRefresh(DeviceRefreshCallback cb) {
-    m_devicesRefreshCallback = cb;
-}
-
-void MidiManager::onDevicesAdded(DeviceAddedCallback cb) {
-    m_deviceAddedCallback = cb;
-}
-
-void MidiManager::onDevicesRemoved(DeviceRemovedCallback cb) {
-    m_deviceRemovedCallback = cb;
 }
