@@ -94,6 +94,8 @@ private:
     Debouncer<MidiDevice*> m_deviceAddedDebouncer;
     Debouncer<MidiDevice*> m_deviceRemovedDebouncer;
 
+    Debouncer<> m_handlePortRefreshDebouncer;
+
     MidiPortManager m_portManager;
 
     bool m_recording;
@@ -104,5 +106,4 @@ public:
     MidiManager();
 
 private:
-    MidiDeviceManager m_deviceManager;
 };

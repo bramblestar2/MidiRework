@@ -110,10 +110,7 @@ void MidiDevice::onMidiMessage(MidiMessage& msg) {
     //     m_verifier(msg);
     // }
 
-    if (m_verifier.status() == Availability::NotChecked) {
-        m_verifier.verify();
-    }
-    else if (m_verifier.status() == Availability::InProgress) {
+    if (m_verifier.status() == Availability::InProgress) {
         m_verifier(msg);
     } 
     else if (m_verifier.status() == Availability::Available) {
@@ -343,6 +340,13 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
             AddDeviceCount(deviceName);
 
             m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
+
+            std::ostringstream ss;
+            for (auto c : m_identity) {
+                ss << std::hex << std::setfill('0') << std::setw(2) << (int)c << " ";
+            }
+
+            std::cout << m_deviceName << ": " << ss.str() << std::endl;
             break;
         } else {
             spdlog::warn(deviceName + ": device mismatch\n");

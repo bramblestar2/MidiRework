@@ -190,8 +190,13 @@ MidiDeviceManager::MidiDeviceManager()
                 m_deviceRemovedCallback(device);
             }
         })
+    , m_handlePortRefreshDebouncer(std::chrono::milliseconds(300), 
+        [this]() 
+        { 
+            this->handlePortRefresh(); 
+        })
 {
-    m_portManager.onPortsChanged(std::bind(&MidiDeviceManager::handlePortRefresh, this));
+    m_portManager.onPortsChanged([this]() { m_handlePortRefreshDebouncer.trigger(); }); //std::bind(&MidiDeviceManager::handlePortRefresh, this)
     m_portManager.onInputAdded([this](const libremidi::input_port &val) { });
     m_portManager.onInputRemoved([this](const libremidi::input_port &val) { });
     m_portManager.onOutputAdded([this](const libremidi::output_port &val) { });
@@ -206,8 +211,7 @@ MidiDeviceManager::MidiDeviceManager()
             m_warningCallback(info, source);
         }
     });
-
-    handlePortRefresh();
+    m_handlePortRefreshDebouncer.trigger();
 }
 
 void MidiDeviceManager::startRecording() {
@@ -290,7 +294,7 @@ std::vector<MidiDevice*> MidiDeviceManager::getAvailableDevices() {
 
 void MidiDeviceManager::refresh() {
     scanPorts();
-    handlePortRefresh();
+    m_handlePortRefreshDebouncer.trigger();
 }
 
 bool MidiDeviceManager::portsMatch(const libremidi::input_port &inPort, const libremidi::output_port &outPort) {
@@ -341,7 +345,7 @@ void MidiDeviceManager::handlePortRefresh() {
     // Find matching ports in the updated lists
     for (auto &in : inPorts) {
         for (auto &out : outPorts) {
-            if (portsMatch(in, out)) {
+            if (!portsMatch(in, out)) {
                 continue;
             }
 
@@ -374,5 +378,6 @@ void MidiDeviceManager::handlePortRefresh() {
 
 
 MidiManager::MidiManager()
+    : MidiDeviceManager()
 {
 }

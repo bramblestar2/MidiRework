@@ -8,39 +8,6 @@
 int main() {
     spdlog::set_level(spdlog::level::debug);
 
-    libremidi::observer observer;
-    for (const auto& port : observer.get_input_ports()) {
-        spdlog::info("{} | {} | {} | {}", port.port_name, port.display_name, port.device_name, port.port);
-    }
-
-    for (const auto& port : observer.get_output_ports()) {
-        spdlog::info("{} | {} | {} | {}", port.port_name, port.display_name, port.device_name, port.port);
-    }
-
-    auto my_callback = [](const libremidi::message& msg) {
-        for (int i = 0; i < msg.size(); i++) {
-            std::cout << (int)msg[i] << " ";
-        }
-        std::cout << "\n";
-        std::cout.flush();
-    };
-
-    // libremidi::midi_in input{
-    //     libremidi::input_configuration{ .on_message = my_callback }
-    // };
-
-    // input.open_port(libremidi::midi1::in_default_port().value());
-
-    // MidiDevice device(libremidi::midi1::in_default_port().value(), libremidi::midi1::out_default_port().value());
-    // device.onMessage(my_callback);
-    // device.onVerified([](libremidi::message& msg, MidiIdentityVerifier::Availability) {
-    //     std::ostringstream ss;
-    //     for (int i = 0; i < msg.size(); i++) {
-    //         ss << (int)msg[i] << " ";
-    //     }
-    //     spdlog::info("Message: {}", ss.str());
-    // });
-
     MidiManager manager;
     manager.startRecording();
 
@@ -54,6 +21,11 @@ int main() {
     });
     manager.onDeviceAdded([](MidiDevice* device) {
         spdlog::info("Device added: {}", device->name());
+        std::ostringstream ss;
+        for (auto h : device->identity()) {
+            ss << std::hex << (int)h << " ";
+        }
+        spdlog::info("Identity: {}", ss.str());
     });
     manager.onDeviceRemoved([](MidiDevice* device) {
         spdlog::info("Device removed: {}", device->inPort().port_name);
