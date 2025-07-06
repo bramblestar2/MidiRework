@@ -7,13 +7,24 @@ project(
     LANGUAGES CXX
 )
 
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+
 if (LINUX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(JACK REQUIRED jack)
 endif()
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+FetchContent_Declare(
+  readerwriterqueue
+  GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue.git
+  GIT_TAG        master
+)
+FetchContent_MakeAvailable(readerwriterqueue)
+
 
 add_subdirectory(libremidi)
 
