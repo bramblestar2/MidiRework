@@ -312,9 +312,17 @@ void MidiDeviceManager::handlePortRefresh() {
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    for (auto &d : m_devices) {
+        d->close();
+        d->onVerified(nullptr);
+        d->onMessage(nullptr);
+    }
+
     m_devices.clear();
 
     // Find matching ports in the updated lists
+
+    std::cout << "-------------------------------------\n";
 
     for (auto &in : inPorts) {
         for (auto &out : outPorts) {
@@ -332,6 +340,10 @@ void MidiDeviceManager::handlePortRefresh() {
             });
 
             device->onVerified([this, device](MidiMessage &m, Availability status) {
+                if (status == Availability::Available) {
+                    std::cout << "Device added: " << device->name() << "\n";
+                }
+                
                 if (m_deviceAddedCallback) {
                     m_deviceAddedCallback(device.get());
                 }
@@ -339,6 +351,7 @@ void MidiDeviceManager::handlePortRefresh() {
                 if (m_recording) {
                     device->startRecording();
                 }
+
             });
 
             devicesChanged = true;

@@ -61,6 +61,10 @@ int main() {
 
     std::cin.get();
 
+    manager.refresh();
+
+    std::cin.get();
+
     manager.stopRecording();
 
     for (auto recording : manager.recorded()) {
