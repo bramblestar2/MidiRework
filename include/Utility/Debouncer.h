@@ -42,7 +42,7 @@ public:
             m_running   = true;
         }
 
-        m_timerThread = std::thread([this] {
+        m_timerThread = std::jthread([this] {
             std::unique_lock lk(m_mutex);
             auto deadline = Clock::now() + m_delay;
 
@@ -79,7 +79,7 @@ private:
     Callback m_cb;
     std::mutex m_mutex;
     std::condition_variable m_cv;
-    std::thread m_timerThread;
+    std::jthread m_timerThread;
 
     bool m_cancelled;
     bool m_running;

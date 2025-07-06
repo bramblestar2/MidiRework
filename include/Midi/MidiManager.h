@@ -90,14 +90,9 @@ private:
     DeviceAddedCallback m_deviceAddedCallback;
     DeviceRemovedCallback m_deviceRemovedCallback;
 
-
-
     Debouncer<std::vector<MidiDevice*>> m_deviceRefreshDebouncer;
     Debouncer<MidiDevice*> m_deviceAddedDebouncer;
     Debouncer<MidiDevice*> m_deviceRemovedDebouncer;
-
-
-
 
     MidiPortManager m_portManager;
 
