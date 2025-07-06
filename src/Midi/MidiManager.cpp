@@ -172,19 +172,19 @@ void MidiPortManager::OutputRemoved(const libremidi::output_port &val) {
 
 MidiDeviceManager::MidiDeviceManager()
     : m_recording(false)
-    , m_deviceRefreshDebouncer(std::chrono::milliseconds(100), 
+    , m_deviceRefreshDebouncer(std::chrono::milliseconds(300), 
         [this](std::vector<MidiDevice*> devices) {
             if (m_devicesRefreshCallback) {
                 m_devicesRefreshCallback(devices);
             }
         })
-    , m_deviceAddedDebouncer(std::chrono::milliseconds(100), 
+    , m_deviceAddedDebouncer(std::chrono::milliseconds(300), 
         [this](MidiDevice* device) {
             if (m_deviceAddedCallback) {
                 m_deviceAddedCallback(device);
             }
         })
-    , m_deviceRemovedDebouncer(std::chrono::milliseconds(100), 
+    , m_deviceRemovedDebouncer(std::chrono::milliseconds(300), 
         [this](MidiDevice* device) {
             if (m_deviceRemovedCallback) {
                 m_deviceRemovedCallback(device);
