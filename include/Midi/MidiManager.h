@@ -57,7 +57,7 @@ public:
 
     void startRecording();
     void stopRecording();
-    std::vector<std::pair<std::string, std::vector<MidiMessage>>> recorded();
+    std::vector<std::pair<std::string, std::vector<MidiMessageRecord>>> recorded();
 
     void onError(ErrorCallback cb);
     void onWarning(WarningCallback cb);

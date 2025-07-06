@@ -72,7 +72,7 @@ void MidiDevice::stopRecording() {
     m_recorder.stop();
 }
 
-const std::vector<MidiMessage>& MidiDevice::recorded() const noexcept {
+const std::vector<MidiMessageRecord>& MidiDevice::recorded() const noexcept {
     return m_recorder.recorded();
 }
 
@@ -364,6 +364,7 @@ MidiRecorder::MidiRecorder(MidiTransport& transport)
 
 void MidiRecorder::start() {
     m_recording = true;
+    m_start = std::chrono::steady_clock::now();
 }
 
 void MidiRecorder::stop() {
@@ -372,7 +373,12 @@ void MidiRecorder::stop() {
 
 void MidiRecorder::add(const MidiMessage& msg) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_recorded.push_back(msg);
+    MidiMessageRecord record;
+    record.message = msg;
+    auto now = std::chrono::steady_clock::now();
+    record.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_start).count();
+
+    m_recorded.push_back(record);
 }
 
 void MidiRecorder::clear() {
@@ -380,7 +386,7 @@ void MidiRecorder::clear() {
     m_recorded.clear();
 }
 
-const std::vector<MidiMessage>& MidiRecorder::recorded() const noexcept {
+const std::vector<MidiMessageRecord>& MidiRecorder::recorded() const noexcept {
     return m_recorded;
 }
 

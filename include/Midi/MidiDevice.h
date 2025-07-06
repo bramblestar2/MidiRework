@@ -85,7 +85,7 @@ public:
     void stop();
     void add(const libremidi::message& msg);
     void clear();
-    const std::vector<MidiMessage>& recorded() const noexcept;
+    const std::vector<MidiMessageRecord>& recorded() const noexcept;
 
     bool isRecording() const noexcept { return m_recording; }
 
@@ -93,7 +93,9 @@ private:
     MidiTransport& m_transport;
     std::atomic<bool> m_recording{false};
     std::mutex m_mutex;
-    std::vector<MidiMessage> m_recorded;
+    std::vector<MidiMessageRecord> m_recorded;
+
+    std::chrono::steady_clock::time_point m_start;
 };
 
 
@@ -123,7 +125,7 @@ public:
     
     void startRecording();
     void stopRecording();
-    const std::vector<libremidi::message>& recorded() const noexcept;
+    const std::vector<MidiMessageRecord>& recorded() const noexcept;
 
     void onMessage(MidiMessageCallback cb);
     void onVerified(VerificationCallback cb);

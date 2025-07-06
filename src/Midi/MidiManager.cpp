@@ -206,8 +206,8 @@ void MidiDeviceManager::stopRecording() {
     }
 }
 
-std::vector<std::pair<std::string, std::vector<MidiMessage>>> MidiDeviceManager::recorded() {
-    std::vector<std::pair<std::string, std::vector<MidiMessage>>> result;
+std::vector<std::pair<std::string, std::vector<MidiMessageRecord>>> MidiDeviceManager::recorded() {
+    std::vector<std::pair<std::string, std::vector<MidiMessageRecord>>> result;
 
     for (auto d : this->getAvailableDevices()) {
         if (d->recorded().empty()) {

@@ -61,19 +61,16 @@ int main() {
 
     std::cin.get();
 
-    manager.refresh();
-
-    std::cin.get();
-
     manager.stopRecording();
 
     for (auto recording : manager.recorded()) {
         spdlog::info("Device: {}", recording.first);
         for (auto msg : recording.second) {
             std::ostringstream ss;
-            for (int i = 0; i < msg.size(); i++) {
-                ss << (int)msg[i] << " ";
+            for (int i = 0; i < msg.message.size(); i++) {
+                ss << (int)msg.message[i] << " ";
             }
+            ss << " | " << msg.timestamp;
             spdlog::info("Message: {}", ss.str());
         }
     }

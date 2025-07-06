@@ -1,5 +1,6 @@
 #pragma once
 #include <libremidi/libremidi.hpp>
+#include <chrono>
 
 enum class Availability {
     NotChecked,
@@ -8,6 +9,11 @@ enum class Availability {
     Available,
     Unavailable,
     TimedOut
+};
+
+struct MidiMessageRecord {
+    libremidi::message message;
+    int64_t timestamp;
 };
 
 using MidiMessage = libremidi::message;
