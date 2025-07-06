@@ -321,9 +321,6 @@ void MidiDeviceManager::handlePortRefresh() {
     m_devices.clear();
 
     // Find matching ports in the updated lists
-
-    std::cout << "-------------------------------------\n";
-
     for (auto &in : inPorts) {
         for (auto &out : outPorts) {
             if (portsMatch(in, out)) {
@@ -340,10 +337,6 @@ void MidiDeviceManager::handlePortRefresh() {
             });
 
             device->onVerified([this, device](MidiMessage &m, Availability status) {
-                if (status == Availability::Available) {
-                    std::cout << "Device added: " << device->name() << "\n";
-                }
-                
                 if (m_deviceAddedCallback) {
                     m_deviceAddedCallback(device.get());
                 }
