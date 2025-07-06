@@ -25,10 +25,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(readerwriterqueue)
 
+find_package(spdlog CONFIG REQUIRED)
 
 add_subdirectory(libremidi)
-
-find_package(spdlog CONFIG REQUIRED)
 
 add_library(MidiReworkCore 
 

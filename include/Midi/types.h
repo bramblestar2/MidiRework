@@ -1,6 +1,5 @@
 #pragma once
 #include <libremidi/libremidi.hpp>
-#include "MidiDevice.h"
 
 enum class Availability {
     NotChecked,

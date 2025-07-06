@@ -22,6 +22,7 @@ MidiPortManager::MidiPortManager()
 }
 
 void MidiPortManager::scan() {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_inPorts = m_observer.get_input_ports();
     m_outPorts = m_observer.get_output_ports();
 }
