@@ -341,12 +341,6 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
 
             m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
 
-            std::ostringstream ss;
-            for (auto c : m_identity) {
-                ss << std::hex << std::setfill('0') << std::setw(2) << (int)c << " ";
-            }
-
-            std::cout << m_deviceName << ": " << ss.str() << std::endl;
             break;
         } else {
             spdlog::warn(deviceName + ": device mismatch\n");
