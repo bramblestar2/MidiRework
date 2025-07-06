@@ -172,6 +172,24 @@ void MidiPortManager::OutputRemoved(const libremidi::output_port &val) {
 
 MidiDeviceManager::MidiDeviceManager()
     : m_recording(false)
+    , m_deviceRefreshDebouncer(std::chrono::milliseconds(100), 
+        [this](std::vector<MidiDevice*> devices) {
+            if (m_devicesRefreshCallback) {
+                m_devicesRefreshCallback(devices);
+            }
+        })
+    , m_deviceAddedDebouncer(std::chrono::milliseconds(100), 
+        [this](MidiDevice* device) {
+            if (m_deviceAddedCallback) {
+                m_deviceAddedCallback(device);
+            }
+        })
+    , m_deviceRemovedDebouncer(std::chrono::milliseconds(100), 
+        [this](MidiDevice* device) {
+            if (m_deviceRemovedCallback) {
+                m_deviceRemovedCallback(device);
+            }
+        })
 {
     m_portManager.onPortsChanged(std::bind(&MidiDeviceManager::handlePortRefresh, this));
     m_portManager.onInputAdded([this](const libremidi::input_port &val) { });
@@ -337,9 +355,7 @@ void MidiDeviceManager::handlePortRefresh() {
             });
 
             device->onVerified([this, device](MidiMessage &m, Availability status) {
-                if (m_deviceAddedCallback) {
-                    m_deviceAddedCallback(device.get());
-                }
+                m_deviceAddedDebouncer.trigger(device.get());
 
                 if (m_recording) {
                     device->startRecording();
@@ -351,8 +367,8 @@ void MidiDeviceManager::handlePortRefresh() {
         }
     }
 
-    if (devicesChanged && m_devicesRefreshCallback) {
-        m_devicesRefreshCallback(this->getDevices());
+    if (devicesChanged) {
+        m_deviceRefreshDebouncer.trigger(this->getDevices());
     }
 }
 

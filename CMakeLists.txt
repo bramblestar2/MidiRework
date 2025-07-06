@@ -33,6 +33,7 @@ add_library(MidiReworkCore
 
     include/Midi/MidiDevice.h src/Midi/MidiDevice.cpp
     include/Midi/MidiManager.h src/Midi/MidiManager.cpp
+    include/Utility/Debouncer.h
     include/Midi/types.h
 )
 

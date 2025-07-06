@@ -8,6 +8,7 @@
 
 #include "MidiDevice.h"
 #include "types.h"
+#include "Utility/Debouncer.h"
 
 class MidiPortManager {
 public:
@@ -88,6 +89,15 @@ private:
     DeviceRefreshCallback m_devicesRefreshCallback;
     DeviceAddedCallback m_deviceAddedCallback;
     DeviceRemovedCallback m_deviceRemovedCallback;
+
+
+
+    Debouncer<std::vector<MidiDevice*>> m_deviceRefreshDebouncer;
+    Debouncer<MidiDevice*> m_deviceAddedDebouncer;
+    Debouncer<MidiDevice*> m_deviceRemovedDebouncer;
+
+
+
 
     MidiPortManager m_portManager;
 
