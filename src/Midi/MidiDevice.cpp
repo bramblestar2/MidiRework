@@ -337,9 +337,9 @@ void MidiIdentityVerifier::operator()(MidiMessage& msg) {
         if (devOk) {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_status = Availability::Available;
-            m_deviceName = deviceName;
+            m_displayName = deviceName;
 
-            m_displayName = GetNameWithCount(deviceName);
+            m_deviceName = GetNameWithCount(deviceName);
             AddDeviceCount(deviceName);
 
             m_identity = std::vector<unsigned char>(payloadBegin, payloadEnd);
