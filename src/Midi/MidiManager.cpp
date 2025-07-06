@@ -368,7 +368,7 @@ void MidiDeviceManager::handlePortRefresh() {
     }
 
     if (devicesChanged) {
-        m_deviceRefreshDebouncer.trigger(this->getDevices());
+        m_deviceRefreshDebouncer.trigger(this->getAvailableDevices());
     }
 }
 
