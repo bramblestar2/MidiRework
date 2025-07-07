@@ -225,14 +225,14 @@ void MidiTransport::handleMidiMessage(MidiMessage& msg) {
     }
 }
 
-void MidiTransport::handleErrorMessage(std::string_view info, const libremidi::source_location& source) {
+void MidiTransport::handleErrorMessage(std::string_view info, const std::source_location& source) {
     spdlog::error("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
     if (m_errorCb) {
         m_errorCb(info, source);
     }
 }
 
-void MidiTransport::handleWarningMessage(std::string_view info, const libremidi::source_location& source) {
+void MidiTransport::handleWarningMessage(std::string_view info, const std::source_location& source) {
     spdlog::warn("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
     if (m_warningCb) {
         m_warningCb(info, source);

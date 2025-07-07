@@ -1,6 +1,7 @@
 #pragma once
 #include <libremidi/libremidi.hpp>
 #include <chrono>
+#include <source_location>
 
 enum class Availability {
     NotChecked,
@@ -23,7 +24,7 @@ using DeviceRefreshCallback = std::function<void(std::vector<class MidiDevice*>)
 using DeviceAddedCallback = std::function<void(class MidiDevice*)>;
 using DeviceRemovedCallback = std::function<void(class MidiDevice*)>;
 
-using ErrorCallback = std::function<void(std::string_view, const libremidi::source_location&)>;
-using WarningCallback = std::function<void(std::string_view, const libremidi::source_location&)>;
+using ErrorCallback = std::function<void(std::string_view, const std::source_location&)>;
+using WarningCallback = std::function<void(std::string_view, const std::source_location&)>;
 
 using VerificationCallback = std::function<void(MidiMessage&, Availability)>;

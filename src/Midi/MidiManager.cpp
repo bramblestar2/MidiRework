@@ -63,7 +63,7 @@ void MidiPortManager::onWarning(WarningCallback cb) {
     m_warningCallback = cb;
 }
 
-void MidiPortManager::ErrorMessage(std::string_view info, const libremidi::source_location& source) {
+void MidiPortManager::ErrorMessage(std::string_view info, const std::source_location& source) {
     spdlog::error("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
 
     if (m_errorCallback) {
@@ -71,7 +71,7 @@ void MidiPortManager::ErrorMessage(std::string_view info, const libremidi::sourc
     }
 }
 
-void MidiPortManager::WarningMessage(std::string_view info, const libremidi::source_location& source) {
+void MidiPortManager::WarningMessage(std::string_view info, const std::source_location& source) {
     spdlog::warn("(File({}) | Ln({})) Midi Error: {}", source.file_name(), source.line(), info);
 
     if (m_warningCallback) {
@@ -201,12 +201,12 @@ MidiDeviceManager::MidiDeviceManager()
     m_portManager.onInputRemoved([this](const libremidi::input_port &val) { });
     m_portManager.onOutputAdded([this](const libremidi::output_port &val) { });
     m_portManager.onOutputRemoved([this](const libremidi::output_port &val) { });
-    m_portManager.onError([this](std::string_view info, const libremidi::source_location& source) {
+    m_portManager.onError([this](std::string_view info, const std::source_location& source) {
         if (m_errorCallback) {
             m_errorCallback(info, source);
         }
     });
-    m_portManager.onWarning([this](std::string_view info, const libremidi::source_location& source) {
+    m_portManager.onWarning([this](std::string_view info, const std::source_location& source) {
         if (m_warningCallback) {
             m_warningCallback(info, source);
         }

@@ -5,6 +5,7 @@
 #include <functional>
 #include <chrono>
 #include <libremidi/libremidi.hpp>
+#include <source_location>
 
 #include "types.h"
 
@@ -28,8 +29,8 @@ public:
     void operator()(MidiMessage& msg);
 private:
     void handleMidiMessage(MidiMessage& msg);
-    void handleErrorMessage(std::string_view info, const libremidi::source_location&);
-    void handleWarningMessage(std::string_view info, const libremidi::source_location&);
+    void handleErrorMessage(std::string_view info, const std::source_location&);
+    void handleWarningMessage(std::string_view info, const std::source_location&);
 
     std::mutex m_mutex;
     libremidi::midi_in m_midiIn;

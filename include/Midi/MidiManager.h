@@ -5,6 +5,7 @@
 #include <mutex>
 #include <memory>
 #include <optional>
+#include <source_location>
 
 #include "MidiDevice.h"
 #include "types.h"
@@ -33,8 +34,8 @@ private:
     void OutputAdded(const libremidi::output_port &val);
     void OutputRemoved(const libremidi::output_port &val);
 
-    void ErrorMessage(std::string_view info, const libremidi::source_location&);
-    void WarningMessage(std::string_view info, const libremidi::source_location&);
+    void ErrorMessage(std::string_view info, const std::source_location&);
+    void WarningMessage(std::string_view info, const std::source_location&);
 
     std::mutex m_mutex;
     std::vector<libremidi::input_port> m_inPorts;
