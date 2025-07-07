@@ -25,9 +25,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(readerwriterqueue)
 
-find_package(spdlog CONFIG REQUIRED)
+FetchContent_Declare(
+  libremidi
+  GIT_REPOSITORY https://github.com/celtera/libremidi.git
+  GIT_TAG        v5.3.0
+)
+FetchContent_MakeAvailable(libremidi)
 
-add_subdirectory(libremidi)
+find_package(spdlog CONFIG REQUIRED)
 
 add_library(MidiReworkCore 
 
